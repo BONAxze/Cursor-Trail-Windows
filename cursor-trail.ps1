@@ -1,4 +1,9 @@
-$code = @'
+param(
+    [string]$Color = "00FFFF", 
+    [int]$Length = 5
+)
+
+$code = @"
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -10,12 +15,12 @@ using System.Windows.Forms;
 
 public class TrailForm : Form
 {
-    // ---- settings you can tweak ----
-    const int   LifeMs     = 350;   // how long the trail takes to fade out
-    const float CoreWidth  = 3.5f;  // width of the bright white core
-    const float GlowWidth  = 11f;   // width of the soft glow around it
-    const int   GlowAlpha  = 60;    // glow strength (0-255)
-    // --------------------------------
+    public string TrailColorHex = "$Color"; 
+    public int TrailLength = $Length;       
+    
+    const float CoreWidth  = 3.5f;  
+    const float GlowWidth  = 11f;   
+    const int   GlowAlpha  = 60;    
 
     const int WS_EX_TRANSPARENT = 0x20;
     const int WS_EX_TOOLWINDOW  = 0x80;
@@ -41,6 +46,9 @@ public class TrailForm : Form
     bool cleared = false;
     Stopwatch sw = Stopwatch.StartNew();
     System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer();
+    
+    int LifeMs;
+    Color BaseColor;
 
     public TrailForm()
     {
@@ -50,6 +58,16 @@ public class TrailForm : Form
         StartPosition = FormStartPosition.Manual;
         Location = new Point(0, 0);
         Size = new Size(1, 1);
+
+        TrailLength = Math.Max(1, Math.Min(10, TrailLength)); 
+        
+        LifeMs = 50 + ((TrailLength - 1) * 200); 
+        
+        try { 
+            string fullHex = TrailColorHex.StartsWith("#") ? TrailColorHex : "#" + TrailColorHex;
+            BaseColor = ColorTranslator.FromHtml(fullHex); 
+        } 
+        catch { BaseColor = Color.Cyan; }
 
         timer.Interval = 8;
         timer.Tick += OnTick;
@@ -114,12 +132,13 @@ public class TrailForm : Form
                 {
                     for (int i = 1; i < n; i++)
                     {
-                        float f = 1f - (float)(now - times[i]) / LifeMs;   // 1 = new, 0 = gone
+                        float f = 1f - (float)(now - times[i]) / LifeMs;   
                         if (f <= 0f) continue;
-                        float width = (pass == 0 ? GlowWidth : CoreWidth) * f;   // tapers toward the tail
+                        float width = (pass == 0 ? GlowWidth : CoreWidth) * f;   
                         int alpha = pass == 0 ? (int)(GlowAlpha * f) : (int)(255 * f);
                         if (width < 0.5f || alpha < 1) continue;
-                        using (Pen pen = new Pen(Color.FromArgb(alpha, 255, 255, 255), width))
+                        
+                        using (Pen pen = new Pen(Color.FromArgb(alpha, BaseColor.R, BaseColor.G, BaseColor.B), width))
                         {
                             pen.StartCap = LineCap.Flat;
                             pen.EndCap = LineCap.Flat;
@@ -155,7 +174,7 @@ public class TrailForm : Form
         }
     }
 }
-'@
+"@
 
 Add-Type -TypeDefinition $code -ReferencedAssemblies System.Windows.Forms, System.Drawing
 
